@@ -1,0 +1,127 @@
+<title>Adresformulier</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  /* Layout: one paper sheet; label column + field column, postcode shares the address column's left edge */
+  :root {
+    --bg: #eef0f3;
+    --paper: #ffffff;
+    --ink: #1c2330;
+    --muted: #5d6675;
+    --rule: #b9c0cc;
+    --accent: #2f5fb3;
+    --font-ui: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --font-field: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #12161d; --paper: #1b212b; --ink: #e6e9ef; --muted: #9aa3b2; --rule: #3c4655; --accent: #7fa6ec;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #12161d; --paper: #1b212b; --ink: #e6e9ef; --muted: #9aa3b2; --rule: #3c4655; --accent: #7fa6ec;
+    color-scheme: dark;
+  }
+  body { background: var(--bg); color: var(--ink); font-family: var(--font-ui); font-size: 16px; }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 32px 16px; display: grid; gap: 16px; }
+  .sheet {
+    background: var(--paper); border: 1px solid var(--rule); border-radius: 6px;
+    padding: 28px 24px; min-width: 0;
+  }
+  h1 { margin: 0 0 24px; font-size: 1.5rem; font-weight: 600; text-wrap: balance; }
+  .fields { overflow-x: auto; padding-bottom: 4px; }
+  .grid {
+    display: grid; grid-template-columns: max-content max-content;
+    column-gap: 12px; row-gap: 18px; align-items: baseline;
+  }
+  .grid .tight { margin-top: -12px; }
+  label { font-weight: 600; white-space: nowrap; }
+  input {
+    font: 500 1.05rem/1.4 var(--font-field); color: var(--ink);
+    background: transparent; border: 0; border-bottom: 1px solid var(--rule);
+    padding: 2px 0; margin: 0; text-indent: 0; border-radius: 0;
+    white-space: nowrap; min-width: 16ch;
+  }
+  input:focus { outline: none; border-bottom: 2px solid var(--accent); }
+  input::placeholder { color: var(--muted); opacity: .7; }
+  .help { color: var(--muted); font-size: .9rem; line-height: 1.5; max-width: 65ch; margin: 0; }
+  .actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  button {
+    font: 600 .95rem var(--font-ui); padding: 8px 14px; border-radius: 4px; cursor: pointer;
+    border: 1px solid var(--rule); background: var(--paper); color: var(--ink);
+  }
+  button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  #status { color: var(--muted); font-size: .9rem; }
+  #measure { position: absolute; visibility: hidden; white-space: pre; font: 500 1.05rem var(--font-field); }
+</style>
+
+<div class="wrap">
+  <form class="sheet" id="form" autocomplete="off">
+    <h1>Formulier</h1>
+    <div class="fields">
+      <div class="grid">
+        <label for="naam">Naam:</label>
+        <input id="naam" type="text" placeholder="Jan Jansen">
+
+        <label for="adres">Adres:</label>
+        <input id="adres" type="text" placeholder="Aaaaaaaaaaaaaaaaaaaaaa,15 Rotterdam">
+
+        <span class="tight" aria-hidden="true"></span>
+        <input id="postcode" class="tight" type="text" placeholder="1234AB" aria-label="Postcode" maxlength="7">
+      </div>
+    </div>
+  </form>
+
+  <div class="actions">
+    <button type="button" id="copy">Copy text</button>
+    <button type="button" id="clear">Clear form</button>
+    <span id="status" role="status"></span>
+  </div>
+  <p class="help">Type in the lines. The address always stays on one line, however long it is, and the postcode sits exactly under the first letter of the address. What you type is kept in this browser.</p>
+</div>
+<span id="measure"></span>
+
+<script>
+  const ids = ["naam", "adres", "postcode"];
+  const measure = document.getElementById("measure");
+  const status = document.getElementById("status");
+
+  // Grow each field to fit its text so nothing wraps or gets hidden
+  function fit(el) {
+    measure.textContent = el.value || el.placeholder;
+    el.style.width = Math.ceil(measure.getBoundingClientRect().width) + 16 + "px";
+  }
+
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    try { el.value = localStorage.getItem("form-" + id) || ""; } catch (e) {}
+    el.addEventListener("input", () => {
+      if (id === "postcode") el.value = el.value.toUpperCase();
+      fit(el);
+      try { localStorage.setItem("form-" + id, el.value); } catch (e) {}
+    });
+    fit(el);
+  });
+  document.fonts && document.fonts.ready.then(() => ids.forEach(id => fit(document.getElementById(id))));
+
+  document.getElementById("form").addEventListener("submit", e => e.preventDefault());
+
+  document.getElementById("clear").addEventListener("click", () => {
+    ids.forEach(id => {
+      const el = document.getElementById(id);
+      el.value = ""; fit(el);
+      try { localStorage.removeItem("form-" + id); } catch (e) {}
+    });
+    status.textContent = "Form cleared";
+  });
+
+  document.getElementById("copy").addEventListener("click", () => {
+    const v = id => document.getElementById(id).value;
+    const pad = " ".repeat("Adres: ".length);
+    const text = "Naam:  " + v("naam") + "\nAdres: " + v("adres") + "\n" + pad + v("postcode");
+    navigator.clipboard.writeText(text)
+      .then(() => { status.textContent = "Copied"; })
+      .catch(() => { status.textContent = "Copy didn't work here. Select the text and copy it yourself."; });
+  });
+</script>
